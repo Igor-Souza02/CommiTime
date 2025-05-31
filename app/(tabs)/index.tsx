@@ -1,75 +1,246 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
-
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+import { Ionicons } from '@expo/vector-icons';
+import React from 'react';
+import {
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 
 export default function HomeScreen() {
+  const dashboardData = [
+    {
+      id: 1,
+      title: 'Calendário',
+      subtitle: '2 eventos próximos',
+      icon: 'calendar-outline',
+      color: '#4A90E2',
+      borderColor: '#4A90E2',
+    },
+    {
+      id: 2,
+      title: 'Tarefas',
+      subtitle: '1 pendentes',
+      icon: 'book-outline',
+      color: '#2ECC71',
+      borderColor: '#2ECC71',
+    },
+    {
+      id: 3,
+      title: 'Despesas',
+      subtitle: 'R$ 2.400,50',
+      icon: 'cash-outline',
+      color: '#E74C3C',
+      borderColor: '#E74C3C',
+    },
+    {
+      id: 4,
+      title: 'Família',
+      subtitle: '4 membros',
+      icon: 'people-outline',
+      color: '#9B59B6',
+      borderColor: '#9B59B6',
+    },
+  ];
+
+  const upcomingEvents = [
+    {
+      id: 1,
+      title: 'Consulta Pediatra - João',
+      date: '24/05/2025 às 14:00',
+      color: '#4A90E2',
+    },
+    {
+      id: 2,
+      title: 'Prova de Matemática - Ana',
+      date: '26/05/2025 às 08:00',
+      color: '#4A90E2',
+    },
+  ];
+
+  const handleCardPress = (cardTitle: string) => {
+    // Navegação será implementada com as outras telas
+    console.log(`Navegando para ${cardTitle}`);
+  };
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.appTitle}>CommiTime</Text>
+        <Text style={styles.subtitle}>Organização familiar simplificada</Text>
+      </View>
+
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Dashboard Cards */}
+        <View style={styles.dashboardContainer}>
+          {dashboardData.map((item) => (
+            <TouchableOpacity
+              key={item.id}
+              style={[
+                styles.dashboardCard,
+                { borderLeftColor: item.borderColor }
+              ]}
+              onPress={() => handleCardPress(item.title)}
+              activeOpacity={0.8}
+            >
+              <View style={styles.cardContent}>
+                <View style={styles.cardIcon}>
+                  <Ionicons
+                    name={item.icon as any}
+                    size={24}
+                    color={item.color}
+                  />
+                </View>
+                <View style={styles.cardText}>
+                  <Text style={styles.cardTitle}>{item.title}</Text>
+                  <Text style={styles.cardSubtitle}>{item.subtitle}</Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Próximos Eventos */}
+        <View style={styles.eventsSection}>
+          <Text style={styles.sectionTitle}>Próximos Eventos</Text>
+          
+          {upcomingEvents.map((event) => (
+            <TouchableOpacity 
+              key={event.id} 
+              style={styles.eventCard}
+              onPress={() => handleCardPress('Calendário')}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.eventIndicator, { backgroundColor: event.color }]} />
+              <View style={styles.eventContent}>
+                <Text style={styles.eventTitle}>{event.title}</Text>
+                <Text style={styles.eventDate}>{event.date}</Text>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
+  container: {
+    flex: 1,
+    backgroundColor: '#F8F9FA',
+  },
+  header: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 20,
+    paddingVertical: 25,
+    alignItems: 'center',
+  },
+  appTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#4A90E2',
+    marginBottom: 5,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#6C757D',
+    textAlign: 'center',
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+  },
+  dashboardContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: 30,
+  },
+  dashboardCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    padding: 16,
+    marginBottom: 16,
+    width: '48%',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  cardContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  cardIcon: {
+    marginRight: 12,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  cardText: {
+    flex: 1,
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2C3E50',
+    marginBottom: 4,
+  },
+  cardSubtitle: {
+    fontSize: 14,
+    color: '#6C757D',
+  },
+  eventsSection: {
+    marginBottom: 100,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#2C3E50',
+    marginBottom: 16,
+  },
+  eventCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.08,
+    shadowRadius: 2.22,
+    elevation: 3,
+  },
+  eventIndicator: {
+    width: 4,
+    height: 40,
+    borderRadius: 2,
+    marginRight: 16,
+  },
+  eventContent: {
+    flex: 1,
+  },
+  eventTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2C3E50',
+    marginBottom: 4,
+  },
+  eventDate: {
+    fontSize: 14,
+    color: '#6C757D',
   },
 });
