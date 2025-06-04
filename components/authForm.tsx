@@ -1,84 +1,92 @@
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from "react-native";
-import { Inter_400Regular } from "@expo-google-fonts/inter";
-import { useFonts } from "expo-font";
-import * as SplashScreen from "expo-splash-screen";
-
-SplashScreen.preventAutoHideAsync();
+// components/authForm.tsx
+import React from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+} from "react-native";
 
 interface AuthFormProps {
-  buttonText: string;
-  placeholderPassword: string;
-  tabType?: string;
-  gap: number;
-  onEmailChange?: (email: string) => void;
-  onUsernameChange?: (username: string) => void;
-  onPasswordChange?: (password: string) => void;
-  onSubmit?: () => void;
+  type: "login" | "register";
+  email: string;
+  password: string;
+  username?: string;
+  onEmailChange: (text: string) => void;
+  onPasswordChange: (text: string) => void;
+  onUsernameChange?: (text: string) => void;
+  onSubmit: () => void;
+  isLoading?: boolean;
 }
 
 export default function AuthForm({
-  buttonText,
-  placeholderPassword,
-  tabType,
+  type,
+  email,
+  password,
+  username,
   onEmailChange,
-  onUsernameChange,
   onPasswordChange,
+  onUsernameChange,
   onSubmit,
-  gap,
+  isLoading = false,
 }: AuthFormProps) {
-  const [fontsLoaded] = useFonts({
-    Inter_400Regular,
-  });
-
-  if (!fontsLoaded) {
-    return null;
-  }
-
   return (
-    <View style={[styles.container, { gap: gap }]}>
-      {tabType === "register" && (
-        <View>
-          <Text style={styles.label}>Email</Text>
+    <View style={styles.container}>
+      {type === "register" && (
+        <View style={styles.inputContainer}>
+          <Text style={styles.label}>Nome</Text>
           <TextInput
             style={styles.input}
-            placeholder="Enter your Email"
-            placeholderTextColor="#B3B3B3"
-            onChangeText={onEmailChange}
+            placeholder="Digite seu nome"
+            placeholderTextColor="#999"
+            value={username}
+            onChangeText={onUsernameChange}
+            autoCapitalize="words"
           />
         </View>
       )}
 
-      <View>
-        <Text style={styles.label}>
-          {tabType === "login" ? "Your email" : "Your Username"}
-        </Text>
+      <View style={styles.inputContainer}>
+        <Text style={styles.label}>E-mail</Text>
         <TextInput
           style={styles.input}
-          placeholder={tabType === "login" ? "Enter Your Email" : "Ex: John12345"}
-          placeholderTextColor="#B3B3B3"
-          onChangeText={tabType === "login" ? onEmailChange : onUsernameChange}
+          placeholder="Digite seu e-mail"
+          placeholderTextColor="#999"
+          value={email}
+          onChangeText={onEmailChange}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoCorrect={false}
         />
       </View>
 
-      <View>
-        <Text style={styles.label}>Your Password</Text>
+      <View style={styles.inputContainer}>
+        <Text style={styles.label}>Senha</Text>
         <TextInput
           style={styles.input}
-          placeholder={placeholderPassword}
-          placeholderTextColor="#B3B3B3"
-          secureTextEntry={true}
+          placeholder="Digite sua senha"
+          placeholderTextColor="#999"
+          value={password}
           onChangeText={onPasswordChange}
+          secureTextEntry
+          autoCapitalize="none"
         />
       </View>
 
       <TouchableOpacity
+        style={[styles.button, isLoading && styles.buttonDisabled]}
         onPress={onSubmit}
-        style={[
-          styles.button,
-          tabType === "login" && styles.buttonLoginMargin
-        ]}
+        disabled={isLoading}
       >
-        <Text style={styles.buttonText}>{buttonText}</Text>
+        {isLoading ? (
+          <ActivityIndicator color="white" />
+        ) : (
+          <Text style={styles.buttonText}>
+            {type === "login" ? "Entrar" : "Cadastrar"}
+          </Text>
+        )}
       </TouchableOpacity>
     </View>
   );
@@ -86,40 +94,59 @@ export default function AuthForm({
 
 const styles = StyleSheet.create({
   container: {
-    justifyContent: 'center',
-    width: 384, // w-96 (24rem = 384px)
-    height: 240, // h-60 (15rem = 240px)
-    borderWidth: 1,
-    borderRadius: 10,
+    width: "100%",
+    maxWidth: 400,
     paddingHorizontal: 20,
-    borderColor: '#9CA3AF', // gray-400
-    marginBottom: 40,
+  },
+  inputContainer: {
+    marginBottom: 20,
   },
   label: {
-    fontSize: 12,
-    paddingBottom: 4,
-    fontFamily: 'Inter_400Regular',
-    color: '#000000',
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 8,
   },
   input: {
-    borderWidth: 1,
-    borderRadius: 5,
-    height: 28,
-    paddingHorizontal: 8,
-    borderColor: '#D1D5DB', // gray-300
+    height: 50,
+    borderWidth: 2,
+    borderColor: "#E5E7EB",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    backgroundColor: "#FFFFFF",
+    color: "#000000",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   button: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 32,
-    backgroundColor: '#648DDB',
-    borderRadius: 4,
+    height: 50,
+    backgroundColor: "#0EA5E9",
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 10,
+    shadowColor: "#0EA5E9",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
   },
-  buttonLoginMargin: {
-    marginTop: 32,
+  buttonDisabled: {
+    backgroundColor: "#94A3B8",
   },
   buttonText: {
-    color: '#FFFFFF',
-    fontFamily: 'Inter_400Regular',
+    color: "white",
+    fontSize: 18,
+    fontWeight: "bold",
   },
 });
