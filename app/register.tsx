@@ -1,80 +1,204 @@
-// app/login.tsx
 import { useState } from "react";
 import { View, Text, StyleSheet, Alert } from "react-native";
 import { useRouter } from "expo-router";
-import { useAuth } from "../contexts/AuthContext";
 import AuthTabs from "../components/authTabs";
 import AuthForm from "../components/authForm";
-import { Lobster_400Regular } from "@expo-google-fonts/lobster";
-import { useFonts } from "expo-font";
+import { useFonts, Lobster_400Regular } from '@expo-google-fonts/lobster';
 
-export default function Login() {
-  const [activeTab, setActiveTab] = useState("login");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-
-  const router = useRouter();
-  const { login } = useAuth();
-
+export default function Register() {
   const [fontsLoaded] = useFonts({
     Lobster_400Regular,
   });
 
+  const [activeTab, setActiveTab] = useState("register");
+  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
+
+  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+
   if (!fontsLoaded) {
     return null;
   }
+
+  const handleUsernameChange = (name: string) => {
+    setUsername(name);
+  };
+
+  const handlePasswordChange = (pw: string) => {
+    setPassword(pw);
+  };
+
+  const handleEmailChange = (em: string) => {
+    setEmail(em);
+  };
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
     router.push(tab === "login" ? "/login" : "/register");
   };
 
-  const handleEmailChange = (text: string) => {
-    setEmail(text);
+  const validateInputs = () => {
+    if (!email || !username || !password) {
+      Alert.alert("Erro de Validação", "Preencha todos os campos.");
+      return false;
+    }
+
+    // Validação de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      Alert.alert("Erro de Validação", "Digite um email válido.");
+      return false;
+    }
+
+    // Validação de senha
+    if (password.length < 6) {
+      Alert.alert("Erro de Validação", "A senha deve ter pelo menos 6 caracteres.");
+      return false;
+    }
+
+    // Validação de nome
+    if (username.trim().length < 2) {
+      Alert.alert("Erro de Validação", "O nome deve ter pelo menos 2 caracteres.");
+      return false;
+    }
+
+    return true;
   };
 
-  const handlePasswordChange = (text: string) => {
-    setPassword(text);
-  };
-
-  const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert("Erro", "Preencha todos os campos");
+  const handleRegister = async () => {
+    if (!validateInputs()) {
       return;
     }
 
     setIsLoading(true);
-    const success = await login(email, password);
-    setIsLoading(false);
 
-    // Se chegou até aqui e não teve sucesso, o erro já foi mostrado no AuthContext
+    try {
+      console.log("🚀 Iniciando processo de registro...");
+      
+      const userData = {
+        email: email.trim().toLowerCase(),
+        name: username.trim(),
+        password: password,
+      };
+
+      const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
+      const endpoint = `${API_URL}/api/auth/register`;
+      
+      console.log("📡 API URL:", API_URL);
+      console.log("🎯 Endpoint:", endpoint);
+      console.log("📦 Dados sendo enviados:", {
+        email: userData.email,
+        name: userData.name,
+        password: "[HIDDEN]"
+      });
+
+      const requestOptions = {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
+        body: JSON.stringify(userData),
+      };
+
+      console.log("🔄 Fazendo requisição...");
+      
+      const response = await fetch(endpoint, requestOptions);
+      
+      console.log("📊 Status da resposta:", response.status);
+      console.log("📊 Response OK:", response.ok);
+      
+      // Verifica o content-type da resposta
+      const contentType = response.headers.get("content-type");
+      console.log("📋 Content-Type:", contentType);
+      
+      let data;
+      try {
+        const responseText = await response.text();
+        console.log("📄 Resposta bruta:", responseText);
+        
+        if (contentType && contentType.includes("application/json")) {
+          data = responseText ? JSON.parse(responseText) : {};
+          console.log("📋 Dados JSON parseados:", data);
+        } else {
+          console.log("⚠️ Resposta não é JSON válido");
+          throw new Error(`Resposta do servidor não é JSON válido. Content-Type: ${contentType}`);
+        }
+      } catch (parseError) {
+        console.error("❌ Erro ao fazer parse da resposta:", parseError);
+        throw new Error("Erro ao processar resposta do servidor");
+      }
+
+      if (response.ok && data.success) {
+        console.log("✅ Registration successful:", data);
+        Alert.alert(
+          "Sucesso", 
+          data.message || "Registro realizado com sucesso! Faça login agora.",
+          [
+            {
+              text: "OK",
+              onPress: () => {
+                // Limpa os campos
+                setEmail("");
+                setUsername("");
+                setPassword("");
+                // Navega para login
+                router.push("/login");
+              }
+            }
+          ]
+        );
+      } else {
+        const errorMessage = data?.error || data?.message || `Erro HTTP ${response.status}`;
+        console.error("❌ Registration failed:", errorMessage);
+        console.error("❌ Full error data:", data);
+        
+        Alert.alert(
+          "Erro de Registro", 
+          errorMessage,
+          [{ text: "OK" }]
+        );
+      }
+
+    } catch (error: any) {
+      console.error("💥 Erro durante o registro:", error);
+      
+      let errorMessage = "Erro inesperado durante o registro.";
+      
+      if (error.message === "Network request failed") {
+        errorMessage = `Não foi possível conectar ao servidor.\n\nVerifique se o backend está rodando em:\n${process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000"}`;
+      } else if (error.message.includes("JSON")) {
+        errorMessage = "Erro na comunicação com o servidor. Resposta inválida.";
+      } else {
+        errorMessage = error.message || "Erro inesperado.";
+      }
+      
+      Alert.alert("Erro de Conexão", errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>
         Commi
-        <Text style={styles.titleAccent}>Time!</Text>
+        <Text style={styles.titleAccent}>Time</Text>!
       </Text>
-
-      <AuthTabs activeTab={activeTab} onTabChange={handleTabChange} />
-
+      <AuthTabs onTabChange={handleTabChange} activeTab={activeTab} />
       <AuthForm
-        type="login"
+        type="register"
         email={email}
         password={password}
+        username={username}
         onEmailChange={handleEmailChange}
+        onUsernameChange={handleUsernameChange}
         onPasswordChange={handlePasswordChange}
-        onSubmit={handleLogin}
+        onSubmit={handleRegister}
         isLoading={isLoading}
       />
-
-      <View style={styles.testCredentials}>
-        <Text style={styles.testTitle}>Credenciais de teste:</Text>
-        <Text style={styles.testText}>Email: test@test.com</Text>
-        <Text style={styles.testText}>Senha: 123456</Text>
-      </View>
     </View>
   );
 }
@@ -85,8 +209,6 @@ const styles = StyleSheet.create({
     height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F8FAFC',
-    paddingHorizontal: 20,
   },
   title: {
     fontSize: 72,
@@ -96,23 +218,5 @@ const styles = StyleSheet.create({
   },
   titleAccent: {
     color: '#0EA5E9',
-  },
-  testCredentials: {
-    marginTop: 30,
-    padding: 15,
-    backgroundColor: '#FEF3C7',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#F59E0B',
-  },
-  testTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#92400E',
-    marginBottom: 5,
-  },
-  testText: {
-    fontSize: 12,
-    color: '#92400E',
   },
 });

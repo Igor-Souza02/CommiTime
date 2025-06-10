@@ -1,101 +1,112 @@
-// components/authForm.tsx
-import React from "react";
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
+import React from 'react';
+import { 
+  View, 
+  Text, 
+  TextInput, 
+  TouchableOpacity, 
   StyleSheet,
-  ActivityIndicator,
-} from "react-native";
+  ActivityIndicator
+} from 'react-native';
 
 interface AuthFormProps {
-  type: "login" | "register";
   email: string;
   password: string;
   username?: string;
-  onEmailChange: (text: string) => void;
-  onPasswordChange: (text: string) => void;
-  onUsernameChange?: (text: string) => void;
+  onEmailChange: (email: string) => void;
+  onPasswordChange: (password: string) => void;
+  onUsernameChange?: (username: string) => void;
   onSubmit: () => void;
   isLoading?: boolean;
+  type?: 'login' | 'register';
 }
 
-export default function AuthForm({
-  type,
-  email,
-  password,
-  username,
-  onEmailChange,
-  onPasswordChange,
+export default function AuthForm({ 
+  email, 
+  password, 
+  username = "",
+  onEmailChange, 
+  onPasswordChange, 
   onUsernameChange,
   onSubmit,
   isLoading = false,
+  type = 'login'
 }: AuthFormProps) {
+  const isLogin = type === 'login';
+  const isRegister = type === 'register';
+
   return (
     <View style={styles.container}>
-      {type === "register" && (
+      <View style={styles.inputContainer}>
+        <Text style={styles.label}>Email</Text>
+        <TextInput
+          style={styles.input}
+          value={email}
+          onChangeText={onEmailChange}
+          placeholder="Digite seu email"
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoCorrect={false}
+          editable={!isLoading}
+        />
+      </View>
+
+      {isRegister && (
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>Nome</Text>
+          <Text style={styles.label}>Nome de usuário</Text>
           <TextInput
             style={styles.input}
-            placeholder="Digite seu nome"
-            placeholderTextColor="#999"
             value={username}
             onChangeText={onUsernameChange}
-            autoCapitalize="words"
+            placeholder="Digite seu nome de usuário"
+            autoCapitalize="none"
+            autoCorrect={false}
+            editable={!isLoading}
           />
         </View>
       )}
 
       <View style={styles.inputContainer}>
-        <Text style={styles.label}>E-mail</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Digite seu e-mail"
-          placeholderTextColor="#999"
-          value={email}
-          onChangeText={onEmailChange}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-      </View>
-
-      <View style={styles.inputContainer}>
         <Text style={styles.label}>Senha</Text>
         <TextInput
           style={styles.input}
-          placeholder="Digite sua senha"
-          placeholderTextColor="#999"
           value={password}
           onChangeText={onPasswordChange}
+          placeholder={isRegister ? "Ex: 123456789" : "Digite sua senha"}
           secureTextEntry
           autoCapitalize="none"
+          autoCorrect={false}
+          editable={!isLoading}
         />
       </View>
 
-      <TouchableOpacity
-        style={[styles.button, isLoading && styles.buttonDisabled]}
+      <TouchableOpacity 
+        style={[styles.submitButton, isLoading && styles.submitButtonDisabled]} 
         onPress={onSubmit}
         disabled={isLoading}
       >
         {isLoading ? (
-          <ActivityIndicator color="white" />
+          <ActivityIndicator color="#FFFFFF" size="small" />
         ) : (
-          <Text style={styles.buttonText}>
-            {type === "login" ? "Entrar" : "Cadastrar"}
+          <Text style={styles.submitButtonText}>
+            {isLogin ? 'Entrar' : 'Cadastrar'}
           </Text>
         )}
       </TouchableOpacity>
+
+      {isLogin && (
+        <TouchableOpacity style={styles.forgotPassword} disabled={isLoading}>
+          <Text style={styles.forgotPasswordText}>
+            Esqueceu sua senha?
+          </Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    width: "100%",
-    maxWidth: 400,
+    width: '100%',
     paddingHorizontal: 20,
   },
   inputContainer: {
@@ -103,50 +114,41 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
+    fontWeight: '600',
+    color: '#374151',
     marginBottom: 8,
   },
   input: {
-    height: 50,
-    borderWidth: 2,
-    borderColor: "#E5E7EB",
-    borderRadius: 12,
-    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    padding: 12,
     fontSize: 16,
-    backgroundColor: "#FFFFFF",
-    color: "#000000",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    backgroundColor: '#FFFFFF',
   },
-  button: {
-    height: 50,
-    backgroundColor: "#0EA5E9",
-    borderRadius: 12,
-    justifyContent: "center",
-    alignItems: "center",
-    marginTop: 10,
-    shadowColor: "#0EA5E9",
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
+  submitButton: {
+    backgroundColor: '#3B82F6',
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 20,
+    minHeight: 50,
   },
-  buttonDisabled: {
-    backgroundColor: "#94A3B8",
+  submitButtonDisabled: {
+    backgroundColor: '#9CA3AF',
   },
-  buttonText: {
-    color: "white",
-    fontSize: 18,
-    fontWeight: "bold",
+  submitButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  forgotPassword: {
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  forgotPasswordText: {
+    color: '#6B7280',
+    fontSize: 14,
   },
 });

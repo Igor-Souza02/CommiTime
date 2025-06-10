@@ -1,4 +1,5 @@
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import React from 'react';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 
 interface AuthTabsProps {
   onTabChange: (tab: string) => void;
@@ -8,24 +9,30 @@ interface AuthTabsProps {
 export default function AuthTabs({ onTabChange, activeTab }: AuthTabsProps) {
   return (
     <View style={styles.container}>
-      <TouchableOpacity onPress={() => onTabChange("login")} style={styles.tabButton}>
+      <TouchableOpacity 
+        onPress={() => onTabChange('login')} 
+        style={styles.tabButton}
+      >
         <Text style={[
           styles.tabText, 
-          activeTab === "login" ? styles.activeText : styles.inactiveText
+          activeTab === 'login' ? styles.activeText : styles.inactiveText
         ]}>
           Login
         </Text>
-        {activeTab === "login" && <View style={styles.underline} />}
+        {activeTab === 'login' && <View style={styles.underline} />}
       </TouchableOpacity>
       
-      <TouchableOpacity onPress={() => onTabChange("register")} style={styles.tabButton}>
+      <TouchableOpacity 
+        onPress={() => onTabChange('register')} 
+        style={styles.tabButton}
+      >
         <Text style={[
           styles.tabText, 
-          activeTab === "register" ? styles.activeText : styles.inactiveText
+          activeTab === 'register' ? styles.activeText : styles.inactiveText
         ]}>
-          Sign-in
+          Cadastro
         </Text>
-        {activeTab === "register" && <View style={styles.underline} />}
+        {activeTab === 'register' && <View style={styles.underline} />}
       </TouchableOpacity>
     </View>
   );
