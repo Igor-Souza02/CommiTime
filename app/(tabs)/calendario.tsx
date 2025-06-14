@@ -1,17 +1,19 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  SafeAreaView,
-  StatusBar,
-  Alert,
-  Modal,
-  TextInput,
-} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useState } from 'react';
+import {
+  Alert,
+  Dimensions,
+  Modal,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 
 interface Evento {
   id: number;
@@ -20,6 +22,7 @@ interface Evento {
   hora: string;
   tipo: 'medico' | 'escola' | 'outros';
   pessoa: string;
+  descricao?: string;
 }
 
 interface NovoEvento {
@@ -28,66 +31,183 @@ interface NovoEvento {
   hora: string;
   tipo: 'medico' | 'escola' | 'outros';
   pessoa: string;
+  descricao: string;
 }
 
-export default function CalendarioScreen() {
-  const [eventos, setEventos] = useState<Evento[]>([
-    {
-      id: 1,
-      titulo: 'Consulta Pediatra - João',
-      data: '24/05/2025',
-      hora: '14:00',
-      tipo: 'medico',
-      pessoa: 'João',
-    },
-    {
-      id: 2,
-      titulo: 'Prova de Matemática - Ana',
-      data: '26/05/2025',
-      hora: '08:00',
-      tipo: 'escola',
-      pessoa: 'Ana',
-    },
-  ]);
+const { width } = Dimensions.get('window');
 
+export default function CalendarioScreen() {
+  const [eventos, setEventos] = useState<Evento[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
+  const [mesAtual, setMesAtual] = useState(new Date());
   const [novoEvento, setNovoEvento] = useState<NovoEvento>({
     titulo: '',
     data: '',
     hora: '',
     tipo: 'outros',
     pessoa: '',
+    descricao: '',
   });
 
-  const handleAdicionarEvento = () => {
-    setModalVisible(true);
-  };
+  const meses = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+  ];
 
-  const handleSalvarEvento = () => {
-    if (!novoEvento.titulo || !novoEvento.data || !novoEvento.hora) {
-      Alert.alert('Erro', 'Preencha todos os campos obrigatórios');
-      return;
-    }
+  const diasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
-    const evento: Evento = {
-      id: Date.now(),
-      titulo: novoEvento.titulo,
-      data: novoEvento.data,
-      hora: novoEvento.hora,
-      tipo: novoEvento.tipo,
-      pessoa: novoEvento.pessoa,
-    };
-
-    setEventos(prev => [...prev, evento]);
-    setModalVisible(false);
+  const limparFormulario = () => {
     setNovoEvento({
       titulo: '',
       data: '',
       hora: '',
       tipo: 'outros',
       pessoa: '',
+      descricao: '',
     });
-    Alert.alert('Sucesso', 'Evento adicionado com sucesso!');
+  };
+
+  const handleAdicionarEvento = () => {
+    limparFormulario();
+    setModalVisible(true);
+  };
+
+  const handleDiaClicado = (data: Date) => {
+    // Verificar se a data é no passado
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    
+    if (data < hoje) {
+      Alert.alert('Data inválida', 'Não é possível adicionar eventos no passado.');
+      return;
+    }
+
+    const dataFormatada = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+    limparFormulario();
+    setNovoEvento(prev => ({
+      ...prev,
+      data: dataFormatada
+    }));
+    setModalVisible(true);
+  };
+
+  const formatarData = (texto: string) => {
+    // Remove tudo que não for número
+    const numeros = texto.replace(/\D/g, '');
+    
+    // Aplica a máscara DD/MM/AAAA
+    if (numeros.length <= 2) {
+      return numeros;
+    } else if (numeros.length <= 4) {
+      return numeros.slice(0, 2) + '/' + numeros.slice(2);
+    } else {
+      return numeros.slice(0, 2) + '/' + numeros.slice(2, 4) + '/' + numeros.slice(4, 8);
+    }
+  };
+
+  const formatarHora = (texto: string) => {
+    // Remove tudo que não for número
+    const numeros = texto.replace(/\D/g, '');
+
+    // Permite apagar tudo
+    if (numeros.length === 0) {
+      return '';
+    }
+
+    // Só horas
+    if (numeros.length <= 2) {
+      return numeros;
+    }
+
+    // Horas e minutos
+    let horas = numeros.slice(0, 2);
+    let minutos = numeros.slice(2, 4);
+
+    // Limita valores válidos
+    if (parseInt(horas) > 23) horas = '23';
+    if (minutos && parseInt(minutos) > 59) minutos = '59';
+
+    if (minutos.length > 0) {
+      return `${horas}:${minutos}`;
+    } else {
+      return `${horas}`;
+    }
+  };
+
+  const validarHorario = (horario: string): boolean => {
+    const horaRegex = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/;
+    return horaRegex.test(horario);
+  };
+
+  const handleSalvarEvento = async () => {
+    if (!novoEvento.titulo || !novoEvento.data || !novoEvento.hora || !novoEvento.pessoa) {
+      Alert.alert('Erro', 'Preencha todos os campos obrigatórios (Título, Data, Hora e Pessoa)');
+      return;
+    }
+
+    // Validar formato da data
+    const dataRegex = /^\d{2}\/\d{2}\/\d{4}$/;
+    if (!dataRegex.test(novoEvento.data)) {
+      Alert.alert('Erro', 'Use o formato DD/MM/AAAA para a data');
+      return;
+    }
+
+    // Validar formato e valores da hora
+    if (!validarHorario(novoEvento.hora)) {
+      Alert.alert('Erro', 'Use o formato HH:MM para a hora (00:00 a 23:59)');
+      return;
+    }
+
+    // Validar se a data não é no passado
+    const [dia, mes, ano] = novoEvento.data.split('/').map(Number);
+    const dataEvento = new Date(ano, mes - 1, dia);
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    
+    if (dataEvento < hoje) {
+      Alert.alert('Data inválida', 'Não é possível adicionar eventos no passado.');
+      return;
+    }
+
+    // Validar se a data é válida (ex: não permitir 31/02/2024)
+    const dataValidacao = new Date(ano, mes - 1, dia);
+    if (dataValidacao.getDate() !== dia || dataValidacao.getMonth() !== mes - 1 || dataValidacao.getFullYear() !== ano) {
+      Alert.alert('Data inválida', 'Por favor, insira uma data válida.');
+      return;
+    }
+
+    // Converter data para o formato YYYY-MM-DD
+    const dataISO = `${ano}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+
+    // Enviar para o backend
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await fetch('http://localhost:3000/api/events', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          ...novoEvento,
+          data: dataISO, // <-- aqui está o ajuste!
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        Alert.alert('Erro', data.error || 'Erro ao salvar evento');
+        return;
+      }
+
+      setEventos(prev => [...prev, data.event]);
+      setModalVisible(false);
+      limparFormulario();
+      Alert.alert('Sucesso', 'Evento adicionado com sucesso!');
+    } catch (error) {
+      Alert.alert('Erro', 'Erro de conexão com o servidor');
+    }
   };
 
   const handleRemoverEvento = (eventoId: number) => {
@@ -134,21 +254,78 @@ export default function CalendarioScreen() {
     }
   };
 
-  const eventosPorData = eventos.reduce((acc, evento) => {
-    if (!acc[evento.data]) {
-      acc[evento.data] = [];
-    }
-    acc[evento.data].push(evento);
-    return acc;
-  }, {} as Record<string, Evento[]>);
+  const getDiasDoMes = () => {
+    const ano = mesAtual.getFullYear();
+    const mes = mesAtual.getMonth();
+    const primeiroDia = new Date(ano, mes, 1);
+    const ultimoDia = new Date(ano, mes + 1, 0);
+    const diasNoMes = ultimoDia.getDate();
+    const diaSemanaInicio = primeiroDia.getDay();
 
-  const datasOrdenadas = Object.keys(eventosPorData).sort((a, b) => {
-    const [diaA, mesA, anoA] = a.split('/').map(Number);
-    const [diaB, mesB, anoB] = b.split('/').map(Number);
-    const dataA = new Date(anoA, mesA - 1, diaA);
-    const dataB = new Date(anoB, mesB - 1, diaB);
-    return dataA.getTime() - dataB.getTime();
-  });
+    const dias = [];
+    
+    // Dias do mês anterior para preencher o início
+    for (let i = diaSemanaInicio - 1; i >= 0; i--) {
+      const diaAnterior = new Date(ano, mes, -i);
+      dias.push({
+        dia: diaAnterior.getDate(),
+        isCurrentMonth: false,
+        data: diaAnterior,
+      });
+    }
+
+    // Dias do mês atual
+    for (let dia = 1; dia <= diasNoMes; dia++) {
+      const data = new Date(ano, mes, dia);
+      dias.push({
+        dia,
+        isCurrentMonth: true,
+        data,
+      });
+    }
+
+    // Dias do próximo mês para completar a grid
+    const diasRestantes = 42 - dias.length; // 6 semanas * 7 dias
+    for (let dia = 1; dia <= diasRestantes; dia++) {
+      const proximoMes = new Date(ano, mes + 1, dia);
+      dias.push({
+        dia,
+        isCurrentMonth: false,
+        data: proximoMes,
+      });
+    }
+
+    return dias;
+  };
+
+  const temEventoNoDia = (data: Date) => {
+    const dataString = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+    return eventos.some(evento => evento.data === dataString);
+  };
+
+  const proximoMes = () => {
+    setMesAtual(new Date(mesAtual.getFullYear(), mesAtual.getMonth() + 1, 1));
+  };
+
+  const mesAnterior = () => {
+    setMesAtual(new Date(mesAtual.getFullYear(), mesAtual.getMonth() - 1, 1));
+  };
+
+  const eventosProximos = eventos
+    .filter(evento => {
+      const [dia, mes, ano] = evento.data.split('/').map(Number);
+      const dataEvento = new Date(ano, mes - 1, dia);
+      const hoje = new Date();
+      hoje.setHours(0, 0, 0, 0);
+      return dataEvento >= hoje;
+    })
+    .sort((a, b) => {
+      const [diaA, mesA, anoA] = a.data.split('/').map(Number);
+      const [diaB, mesB, anoB] = b.data.split('/').map(Number);
+      const dataA = new Date(anoA, mesA - 1, diaA);
+      const dataB = new Date(anoB, mesB - 1, diaB);
+      return dataA.getTime() - dataB.getTime();
+    });
 
   return (
     <SafeAreaView style={styles.container}>
@@ -157,54 +334,95 @@ export default function CalendarioScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Calendário</Text>
-        <TouchableOpacity 
-          style={styles.addButton}
-          onPress={handleAdicionarEvento}
-        >
-          <Ionicons name="add" size={24} color="#FFFFFF" />
-        </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Lista de Eventos */}
-        {datasOrdenadas.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Ionicons name="calendar-outline" size={64} color="#BDC3C7" />
-            <Text style={styles.emptyText}>Nenhum evento agendado</Text>
+        {/* Seção do Calendário */}
+        <View style={styles.calendarSection}>
+          {/* Navegação do mês */}
+          <View style={styles.monthNavigation}>
+            <TouchableOpacity onPress={mesAnterior} style={styles.navButton}>
+              <Ionicons name="chevron-back" size={24} color="#4A90E2" />
+            </TouchableOpacity>
+            <Text style={styles.monthYear}>
+              {meses[mesAtual.getMonth()]} {mesAtual.getFullYear()}
+            </Text>
+            <TouchableOpacity onPress={proximoMes} style={styles.navButton}>
+              <Ionicons name="chevron-forward" size={24} color="#4A90E2" />
+            </TouchableOpacity>
           </View>
-        ) : (
-          datasOrdenadas.map(data => (
-            <View key={data} style={styles.dataSection}>
-              <Text style={styles.dataHeader}>{data}</Text>
-              {eventosPorData[data].map(evento => (
-                <View key={evento.id} style={styles.eventoCard}>
-                  <View style={styles.eventoContent}>
-                    <View style={[styles.tipoIndicator, { backgroundColor: getTipoColor(evento.tipo) }]}>
-                      <Ionicons name={getTipoIcon(evento.tipo)} size={20} color="#FFFFFF" />
-                    </View>
-                    <View style={styles.eventoInfo}>
-                      <Text style={styles.eventoTitulo}>{evento.titulo}</Text>
-                      <Text style={styles.eventoHora}>às {evento.hora}</Text>
-                      <View style={styles.eventoMeta}>
-                        <View style={[styles.tipoLabel, { backgroundColor: getTipoColor(evento.tipo) + '20' }]}>
-                          <Text style={[styles.tipoText, { color: getTipoColor(evento.tipo) }]}>
-                            {getTipoLabel(evento.tipo)}
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-                  </View>
-                  <TouchableOpacity 
-                    style={styles.deleteButton}
-                    onPress={() => handleRemoverEvento(evento.id)}
-                  >
-                    <Ionicons name="trash-outline" size={20} color="#E74C3C" />
-                  </TouchableOpacity>
-                </View>
-              ))}
+
+          {/* Dias da semana */}
+          <View style={styles.weekDays}>
+            {diasSemana.map((dia, index) => (
+              <Text key={index} style={styles.weekDay}>{dia}</Text>
+            ))}
+          </View>
+
+          {/* Grid do calendário */}
+          <View style={styles.calendarGrid}>
+            {getDiasDoMes().map((item, index) => (
+              <TouchableOpacity 
+                key={index} 
+                style={styles.dayContainer}
+                onPress={() => item.isCurrentMonth && handleDiaClicado(item.data)}
+                disabled={!item.isCurrentMonth}
+              >
+                <Text style={[
+                  styles.dayText,
+                  !item.isCurrentMonth && styles.inactiveDayText,
+                  item.data.toDateString() === new Date().toDateString() && styles.todayText
+                ]}>
+                  {item.dia}
+                </Text>
+                {temEventoNoDia(item.data) && item.isCurrentMonth && (
+                  <View style={styles.eventDot} />
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        {/* Seção de Próximos Eventos */}
+        <View style={styles.eventsSection}>
+          <View style={styles.eventsSectionHeader}>
+            <Text style={styles.sectionTitle}>Todos os Próximos Eventos</Text>
+            <TouchableOpacity 
+              style={styles.addEventButton}
+              onPress={handleAdicionarEvento}
+            >
+              <Ionicons name="add" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+
+          {eventosProximos.length === 0 ? (
+            <View style={styles.emptyEventsContainer}>
+              <Ionicons name="calendar-outline" size={48} color="#BDC3C7" />
+              <Text style={styles.emptyEventsText}>Nenhum evento próximo</Text>
+              <Text style={styles.emptyEventsSubtext}>Toque no + para adicionar um evento</Text>
             </View>
-          ))
-        )}
+          ) : (
+            eventosProximos.map(evento => (
+              <TouchableOpacity key={evento.id} style={styles.eventCard}>
+                <View style={[styles.eventColorBar, { backgroundColor: getTipoColor(evento.tipo) }]} />
+                <View style={styles.eventContent}>
+                  <Text style={styles.eventTitle}>{evento.titulo}</Text>
+                  <Text style={styles.eventDateTime}>{evento.data} às {evento.hora}</Text>
+                  <Text style={styles.eventPerson}>{evento.pessoa}</Text>
+                  {evento.descricao && (
+                    <Text style={styles.eventDescription}>{evento.descricao}</Text>
+                  )}
+                </View>
+                <TouchableOpacity 
+                  style={styles.deleteEventButton}
+                  onPress={() => handleRemoverEvento(evento.id)}
+                >
+                  <Ionicons name="trash-outline" size={18} color="#E74C3C" />
+                </TouchableOpacity>
+              </TouchableOpacity>
+            ))
+          )}
+        </View>
       </ScrollView>
 
       {/* Modal Adicionar Evento */}
@@ -212,14 +430,20 @@ export default function CalendarioScreen() {
         animationType="slide"
         transparent={true}
         visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
+        onRequestClose={() => {
+          setModalVisible(false);
+          limparFormulario();
+        }}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Novo Evento</Text>
               <TouchableOpacity 
-                onPress={() => setModalVisible(false)}
+                onPress={() => {
+                  setModalVisible(false);
+                  limparFormulario();
+                }}
                 style={styles.closeButton}
               >
                 <Ionicons name="close" size={24} color="#6C757D" />
@@ -238,33 +462,39 @@ export default function CalendarioScreen() {
               </View>
 
               <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>Data *</Text>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="DD/MM/AAAA"
-                  value={novoEvento.data}
-                  onChangeText={(text) => setNovoEvento({...novoEvento, data: text})}
-                />
-              </View>
-
-              <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>Hora *</Text>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="HH:MM"
-                  value={novoEvento.hora}
-                  onChangeText={(text) => setNovoEvento({...novoEvento, hora: text})}
-                />
-              </View>
-
-              <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>Pessoa</Text>
+                <Text style={styles.inputLabel}>Pessoa *</Text>
                 <TextInput
                   style={styles.textInput}
                   placeholder="Ex: João, Ana, Maria..."
                   value={novoEvento.pessoa}
                   onChangeText={(text) => setNovoEvento({...novoEvento, pessoa: text})}
                 />
+              </View>
+
+              <View style={styles.inputRow}>
+                <View style={[styles.inputContainer, styles.inputHalf]}>
+                  <Text style={styles.inputLabel}>Data *</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="Ex: 25/12/2024"
+                    value={novoEvento.data}
+                    onChangeText={(text) => setNovoEvento({...novoEvento, data: formatarData(text)})}
+                    keyboardType="numeric"
+                    maxLength={10}
+                  />
+                </View>
+
+                <View style={[styles.inputContainer, styles.inputHalf]}>
+                  <Text style={styles.inputLabel}>Hora *</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="Ex: 14:30"
+                    value={novoEvento.hora}
+                    onChangeText={(text) => setNovoEvento({...novoEvento, hora: formatarHora(text)})}
+                    keyboardType="numeric"
+                    maxLength={5}
+                  />
+                </View>
               </View>
 
               <View style={styles.inputContainer}>
@@ -288,12 +518,27 @@ export default function CalendarioScreen() {
                   ))}
                 </View>
               </View>
+
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>Descrição</Text>
+                <TextInput
+                  style={[styles.textInput, styles.textArea]}
+                  placeholder="Detalhes adicionais sobre o evento..."
+                  value={novoEvento.descricao}
+                  onChangeText={(text) => setNovoEvento({...novoEvento, descricao: text})}
+                  multiline
+                  numberOfLines={3}
+                />
+              </View>
             </ScrollView>
 
             <View style={styles.modalActions}>
               <TouchableOpacity 
                 style={styles.cancelButton}
-                onPress={() => setModalVisible(false)}
+                onPress={() => {
+                  setModalVisible(false);
+                  limparFormulario();
+                }}
               >
                 <Text style={styles.cancelButtonText}>Cancelar</Text>
               </TouchableOpacity>
@@ -320,56 +565,22 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 20,
     paddingVertical: 20,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     borderBottomWidth: 1,
     borderBottomColor: '#E9ECEF',
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
-    color: '#4A90E2',
-  },
-  addButton: {
-    backgroundColor: '#4A90E2',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
+    color: '#2C3E50',
   },
   content: {
     flex: 1,
-    paddingHorizontal: 20,
   },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 60,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#6C757D',
-    marginTop: 16,
-  },
-  dataSection: {
-    marginTop: 20,
-  },
-  dataHeader: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#2C3E50',
-    marginBottom: 12,
-  },
-  eventoCard: {
+  calendarSection: {
     backgroundColor: '#FFFFFF',
+    margin: 16,
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
+    padding: 20,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -379,51 +590,157 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
   },
-  eventoContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#2C3E50',
+    marginBottom: 16,
   },
-  tipoIndicator: {
-    width: 40,
+  monthNavigation: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  navButton: {
+    padding: 8,
+  },
+  monthYear: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#2C3E50',
+  },
+  weekDays: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  weekDay: {
+    width: width / 7 - 20,
+    textAlign: 'center',
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#6C757D',
+  },
+  calendarGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  dayContainer: {
+    width: (width - 72) / 7,
     height: 40,
-    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    position: 'relative',
   },
-  eventoInfo: {
+  dayText: {
+    fontSize: 16,
+    color: '#2C3E50',
+  },
+  inactiveDayText: {
+    color: '#BDC3C7',
+  },
+  todayText: {
+    color: '#4A90E2',
+    fontWeight: 'bold',
+  },
+  eventDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#4A90E2',
+    position: 'absolute',
+    bottom: 4,
+  },
+  eventsSection: {
+    margin: 16,
+    marginTop: 0,
+  },
+  eventsSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  addEventButton: {
+    backgroundColor: '#4A90E2',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyEventsContainer: {
+    alignItems: 'center',
+    paddingVertical: 40,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  emptyEventsText: {
+    fontSize: 18,
+    color: '#6C757D',
+    marginTop: 12,
+    fontWeight: '500',
+  },
+  emptyEventsSubtext: {
+    fontSize: 14,
+    color: '#BDC3C7',
+    marginTop: 4,
+  },
+  eventCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    marginBottom: 12,
+    flexDirection: 'row',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
+    overflow: 'hidden',
+  },
+  eventColorBar: {
+    width: 4,
+  },
+  eventContent: {
     flex: 1,
+    padding: 16,
   },
-  eventoTitulo: {
+  eventTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: '#2C3E50',
     marginBottom: 4,
   },
-  eventoHora: {
+  eventDateTime: {
     fontSize: 14,
     color: '#6C757D',
-    marginBottom: 8,
+    marginBottom: 4,
   },
-  eventoMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  tipoLabel: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  tipoText: {
-    fontSize: 12,
+  eventPerson: {
+    fontSize: 14,
+    color: '#4A90E2',
     fontWeight: '500',
   },
-  deleteButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#F8F9FA',
+  eventDescription: {
+    fontSize: 12,
+    color: '#6C757D',
+    marginTop: 8,
+    fontStyle: 'italic',
+  },
+  deleteEventButton: {
+    padding: 16,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -438,7 +755,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     width: '100%',
-    maxHeight: '80%',
+    maxHeight: '85%',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -467,6 +784,13 @@ const styles = StyleSheet.create({
   inputContainer: {
     marginBottom: 16,
   },
+  inputRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  inputHalf: {
+    flex: 1,
+  },
   inputLabel: {
     fontSize: 14,
     fontWeight: '600',
@@ -481,6 +805,10 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 16,
     backgroundColor: '#FFFFFF',
+  },
+  textArea: {
+    height: 80,
+    textAlignVertical: 'top',
   },
   tipoSelector: {
     flexDirection: 'row',
