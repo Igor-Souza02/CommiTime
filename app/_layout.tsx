@@ -4,20 +4,8 @@ import { useFonts } from 'expo-font';
 import { useEffect, useState } from 'react';
 import { useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Simulação simples de storage para desenvolvimento
-const SimpleStorage = {
-  async getItem(key: string): Promise<string | null> {
-    return (globalThis as any)[`storage_${key}`] || null;
-  },
-  async setItem(key: string, value: string): Promise<void> {
-    (globalThis as any)[`storage_${key}`] = value;
-  },
-  async clear(): Promise<void> {
-    const keys = Object.keys(globalThis as any).filter(key => key.startsWith('storage_'));
-    keys.forEach(key => delete (globalThis as any)[key]);
-  }
-};
 
 // Previne a splash screen de se esconder automaticamente
 SplashScreen.preventAutoHideAsync();
@@ -40,7 +28,7 @@ export default function RootLayout() {
 
   const checkInitialRoute = async () => {
     try {
-      const userToken = await SimpleStorage.getItem('userToken');
+      const userToken = await AsyncStorage.getItem('userToken');
       
       if (userToken) {
         // Usuário já está logado, redireciona para perfil
@@ -67,7 +55,7 @@ export default function RootLayout() {
     if (!loaded || !initialRoute) return;
 
     const checkAuth = async () => {
-      const userToken = await SimpleStorage.getItem('userToken');
+      const userToken = await AsyncStorage.getItem('userToken');
       const inAuthGroup = segments[0] === '(tabs)';
       
       if (!userToken && inAuthGroup) {

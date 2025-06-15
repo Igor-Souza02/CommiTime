@@ -1,32 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  SafeAreaView,
-  StatusBar,
+  ActivityIndicator,
   Alert,
   RefreshControl,
-  ActivityIndicator,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 
-// Simulação simples de storage para desenvolvimento
-const SimpleStorage = {
-  async getItem(key: string): Promise<string | null> {
-    return (globalThis as any)[`storage_${key}`] || null;
-  },
-  async setItem(key: string, value: string): Promise<void> {
-    (globalThis as any)[`storage_${key}`] = value;
-  },
-  async clear(): Promise<void> {
-    const keys = Object.keys(globalThis as any).filter(key => key.startsWith('storage_'));
-    keys.forEach(key => delete (globalThis as any)[key]);
-  }
-};
 
 interface User {
   id: number;
@@ -55,12 +43,12 @@ export default function PerfilScreen() {
 
   const checkAuthAndLoadData = async () => {
     try {
-      const userToken = await SimpleStorage.getItem('userToken');
-      const userData = await SimpleStorage.getItem('userData');
+      const userToken = await AsyncStorage.getItem('userToken');
+      const userData = await AsyncStorage.getItem('userData');
       
       if (!userToken) {
-        // Se não há token, redireciona para login
-        router.replace('/login');
+        console.log("loadUsers: Token não encontrado, saindo.");
+        setIsLoading(false); // Pare o carregamento
         return;
       }
 
@@ -79,7 +67,7 @@ export default function PerfilScreen() {
     try {
       setIsLoading(true);
       const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
-      const userToken = await SimpleStorage.getItem('userToken');
+      const userToken = await AsyncStorage.getItem('userToken');
 
       const response = await fetch(`${API_URL}/api/users`, {
         method: 'GET',
@@ -93,9 +81,8 @@ export default function PerfilScreen() {
         const data = await response.json();
         setUsers(data.users || []);
       } else if (response.status === 401) {
-        // Token inválido, redireciona para login
-        await SimpleStorage.clear();
-        router.replace('/login');
+        // Se o token for inválido, apenas limpe e o layout cuidará do resto
+        await AsyncStorage.clear();
       } else {
         console.error('Erro ao carregar usuários:', response.status);
       }
@@ -130,7 +117,7 @@ export default function PerfilScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await SimpleStorage.clear();
+              await AsyncStorage.clear();
               router.replace('/login');
             } catch (error) {
               console.error('Erro ao fazer logout:', error);
@@ -156,9 +143,10 @@ export default function PerfilScreen() {
           onPress: async () => {
             try {
               const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
-              const userToken = await SimpleStorage.getItem('userToken');
+                      const userToken = await AsyncStorage.getItem('userToken');
 
-              const response = await fetch(`${API_URL}/api/users/${userId}`, {
+
+              const response = await fetch(`${API_URL}/api/users`, {
                 method: 'DELETE',
                 headers: {
                   'Authorization': `Bearer ${userToken}`,

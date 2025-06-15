@@ -139,76 +139,84 @@ export default function CalendarioScreen() {
     return horaRegex.test(horario);
   };
 
+  // C:\Users\igors\CommiTime\app\(tabs)\calendario.tsx
+
   const handleSalvarEvento = async () => {
     if (!novoEvento.titulo || !novoEvento.data || !novoEvento.hora || !novoEvento.pessoa) {
       Alert.alert('Erro', 'Preencha todos os campos obrigatórios (Título, Data, Hora e Pessoa)');
       return;
     }
 
-    // Validar formato da data
+    // Validações de formato (a sua lógica aqui está correta)
     const dataRegex = /^\d{2}\/\d{2}\/\d{4}$/;
     if (!dataRegex.test(novoEvento.data)) {
       Alert.alert('Erro', 'Use o formato DD/MM/AAAA para a data');
       return;
     }
-
-    // Validar formato e valores da hora
     if (!validarHorario(novoEvento.hora)) {
       Alert.alert('Erro', 'Use o formato HH:MM para a hora (00:00 a 23:59)');
       return;
     }
-
-    // Validar se a data não é no passado
     const [dia, mes, ano] = novoEvento.data.split('/').map(Number);
     const dataEvento = new Date(ano, mes - 1, dia);
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
-    
     if (dataEvento < hoje) {
       Alert.alert('Data inválida', 'Não é possível adicionar eventos no passado.');
       return;
     }
-
-    // Validar se a data é válida (ex: não permitir 31/02/2024)
     const dataValidacao = new Date(ano, mes - 1, dia);
     if (dataValidacao.getDate() !== dia || dataValidacao.getMonth() !== mes - 1 || dataValidacao.getFullYear() !== ano) {
       Alert.alert('Data inválida', 'Por favor, insira uma data válida.');
       return;
     }
 
-    // Converter data para o formato YYYY-MM-DD
-    const dataISO = `${ano}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
-
-    // Enviar para o backend
+    // Bloco de requisição totalmente corrigido
     try {
-      const token = await AsyncStorage.getItem('token');
-      const response = await fetch('http://localhost:3000/api/events', {
+      // CORREÇÃO 1: Usar a variável de ambiente para a URL da API
+      const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
+      const endpoint = `${API_URL}/api/events`;
+
+      // CORREÇÃO 2: Usar a chave correta 'userToken' para pegar o token
+      const token = await AsyncStorage.getItem('userToken');
+
+      if (!token) {
+        Alert.alert('Erro de Autenticação', 'Sessão expirada. Por favor, faça login novamente.');
+        // Opcional: redirecionar para a tela de login
+        // router.replace('/login');
+        return;
+      }
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          'Authorization': `Bearer ${token}` // O token agora é enviado corretamente
         },
-        body: JSON.stringify({
-          ...novoEvento,
-          data: dataISO, // <-- aqui está o ajuste!
-        }),
+        // CORREÇÃO 3: Enviar o objeto `novoEvento` diretamente, sem modificar a data
+        body: JSON.stringify(novoEvento),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        Alert.alert('Erro', data.error || 'Erro ao salvar evento');
+        // Melhora na exibição do erro
+        console.error('Erro do backend:', data);
+        Alert.alert('Erro ao Salvar', data.error || data.message || 'Não foi possível salvar o evento.');
         return;
       }
 
+      // Sucesso!
       setEventos(prev => [...prev, data.event]);
       setModalVisible(false);
       limparFormulario();
       Alert.alert('Sucesso', 'Evento adicionado com sucesso!');
+
     } catch (error) {
-      Alert.alert('Erro', 'Erro de conexão com o servidor');
+      console.error('Falha na conexão:', error);
+      Alert.alert('Erro de Conexão', 'Não foi possível conectar ao servidor. Verifique o IP no arquivo .env e se o backend está rodando.');
     }
-  };
+  };  
 
   const handleRemoverEvento = (eventoId: number) => {
     Alert.alert(

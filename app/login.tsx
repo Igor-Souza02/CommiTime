@@ -3,20 +3,8 @@ import { View, Text, StyleSheet, Alert, SafeAreaView } from "react-native";
 import { useRouter } from "expo-router";
 import { useFonts, Inter_400Regular, Inter_600SemiBold } from '@expo-google-fonts/inter';
 import * as SplashScreen from 'expo-splash-screen';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Simulação simples de storage para desenvolvimento
-const SimpleStorage = {
-  async getItem(key: string): Promise<string | null> {
-    return (globalThis as any)[`storage_${key}`] || null;
-  },
-  async setItem(key: string, value: string): Promise<void> {
-    (globalThis as any)[`storage_${key}`] = value;
-  },
-  async clear(): Promise<void> {
-    const keys = Object.keys(globalThis as any).filter(key => key.startsWith('storage_'));
-    keys.forEach(key => delete (globalThis as any)[key]);
-  }
-};
 
 import AuthTabs from "@/components/authTabs";
 import AuthForm from "@/components/authForm";
@@ -37,29 +25,6 @@ export default function Login() {
     Inter_400Regular,
     Inter_600SemiBold,
   });
-
-  useEffect(() => {
-    if (fontsLoaded) {
-      SplashScreen.hideAsync();
-    }
-  }, [fontsLoaded]);
-
-  // Verifica se já existe um usuário logado
-  useEffect(() => {
-    checkLoggedInUser();
-  }, []);
-
-  const checkLoggedInUser = async () => {
-    try {
-      const userToken = await SimpleStorage.getItem('userToken');
-      if (userToken) {
-        console.log("👤 Usuário já logado, redirecionando...");
-        router.replace('/(tabs)/perfil');
-      }
-    } catch (error) {
-      console.log('Erro ao verificar usuário logado:', error);
-    }
-  };
 
   if (!fontsLoaded) {
     return null;
@@ -152,8 +117,8 @@ export default function Login() {
       console.log("✅ Login successful:", data);
       
       // Salva o token e informações do usuário
-      await SimpleStorage.setItem('userToken', data.token);
-      await SimpleStorage.setItem('userData', JSON.stringify(data.user));
+      await AsyncStorage.setItem('userToken', data.token);
+      await AsyncStorage.setItem('userData', JSON.stringify(data.user));
       
       Alert.alert(
         "Sucesso", 
