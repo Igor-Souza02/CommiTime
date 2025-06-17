@@ -10,7 +10,6 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
 
 interface Tarefa {
   id: number;
@@ -19,7 +18,6 @@ interface Tarefa {
   aluno: string;
   prazo: string;
   status: 'pendente' | 'concluida' | 'vence_hoje' | 'atrasada';
-  fotoEnviada?: boolean;
   diasRestantes?: number;
 }
 
@@ -32,7 +30,6 @@ export default function TarefasScreen() {
       aluno: 'Ana',
       prazo: '23/05/2025',
       status: 'vence_hoje',
-      fotoEnviada: false,
     },
     {
       id: 2,
@@ -41,7 +38,6 @@ export default function TarefasScreen() {
       aluno: 'João',
       prazo: '25/05/2025',
       status: 'concluida',
-      fotoEnviada: true,
       diasRestantes: 3,
     },
   ]);
@@ -50,35 +46,6 @@ export default function TarefasScreen() {
 
   const handleAdicionarTarefa = () => {
     Alert.alert('Adicionar Tarefa', 'Funcionalidade de adicionar tarefa será implementada');
-  };
-
-  const handleEnviarFoto = async (tarefaId: number) => {
-    try {
-      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      
-      if (permissionResult.granted === false) {
-        Alert.alert('Permissão necessária', 'É necessário permitir acesso às fotos para enviar comprovante.');
-        return;
-      }
-
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 1,
-      });
-
-      if (!result.canceled) {
-        setTarefas(prev => prev.map(tarefa => 
-          tarefa.id === tarefaId 
-            ? { ...tarefa, fotoEnviada: true, status: 'concluida' as const }
-            : tarefa
-        ));
-        Alert.alert('Sucesso', 'Foto da tarefa enviada com sucesso!');
-      }
-    } catch (error) {
-      Alert.alert('Erro', 'Não foi possível enviar a foto. Tente novamente.');
-    }
   };
 
   const handleMarcarConcluida = (tarefaId: number) => {
@@ -190,25 +157,12 @@ export default function TarefasScreen() {
               {tarefa.status !== 'concluida' && (
                 <View style={styles.tarefaActions}>
                   <TouchableOpacity 
-                    style={styles.fotoButton}
-                    onPress={() => handleEnviarFoto(tarefa.id)}
-                  >
-                    <Ionicons name="camera-outline" size={16} color="#4A90E2" />
-                    <Text style={styles.fotoButtonText}>Enviar Foto da Tarefa</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity 
                     style={styles.concluirButton}
                     onPress={() => handleMarcarConcluida(tarefa.id)}
                   >
                     <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+                    <Text style={styles.concluirButtonText}>Marcar como Concluída</Text>
                   </TouchableOpacity>
-                </View>
-              )}
-
-              {tarefa.fotoEnviada && (
-                <View style={styles.fotoEnviadaContainer}>
-                  <Ionicons name="image" size={16} color="#2ECC71" />
-                  <Text style={styles.fotoEnviadaText}>Foto enviada ✓</Text>
                 </View>
               )}
             </View>
@@ -348,44 +302,22 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   tarefaActions: {
-    flexDirection: 'row',
     marginTop: 12,
-    gap: 8,
-  },
-  fotoButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    backgroundColor: '#F8F9FA',
-    borderRadius: 8,
-    gap: 6,
-  },
-  fotoButtonText: {
-    fontSize: 12,
-    color: '#4A90E2',
-    fontWeight: '500',
   },
   concluirButton: {
-    width: 36,
-    height: 36,
-    backgroundColor: '#2ECC71',
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  fotoEnviadaContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
-    gap: 6,
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#2ECC71',
+    borderRadius: 8,
+    gap: 8,
   },
-  fotoEnviadaText: {
-    fontSize: 12,
-    color: '#2ECC71',
-    fontWeight: '500',
+  concluirButtonText: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
   estatisticasContainer: {
     flexDirection: 'row',

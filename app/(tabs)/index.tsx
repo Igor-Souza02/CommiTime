@@ -23,28 +23,21 @@ export default function HomeScreen() {
     {
       id: 2,
       title: 'Tarefas',
-      subtitle: '1 pendentes',
+      subtitle: '1 pendente',
       icon: 'book-outline',
       color: '#2ECC71',
       borderColor: '#2ECC71',
     },
-    {
-      id: 3,
-      title: 'Despesas',
-      subtitle: 'R$ 2.400,50',
-      icon: 'cash-outline',
-      color: '#E74C3C',
-      borderColor: '#E74C3C',
-    },
-    {
-      id: 4,
-      title: 'Família',
-      subtitle: '4 membros',
-      icon: 'people-outline',
-      color: '#9B59B6',
-      borderColor: '#9B59B6',
-    },
   ];
+
+  const familyCard = {
+    id: 3,
+    title: 'Família',
+    subtitle: '4 membros',
+    icon: 'people-outline',
+    color: '#9B59B6',
+    borderColor: '#9B59B6',
+  };
 
   const upcomingEvents = [
     {
@@ -79,31 +72,59 @@ export default function HomeScreen() {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Dashboard Cards */}
         <View style={styles.dashboardContainer}>
-          {dashboardData.map((item) => (
-            <TouchableOpacity
-              key={item.id}
-              style={[
-                styles.dashboardCard,
-                { borderLeftColor: item.borderColor }
-              ]}
-              onPress={() => handleCardPress(item.title)}
-              activeOpacity={0.8}
-            >
-              <View style={styles.cardContent}>
-                <View style={styles.cardIcon}>
-                  <Ionicons
-                    name={item.icon as any}
-                    size={24}
-                    color={item.color}
-                  />
+          {/* Primeira linha - Calendário e Tarefas */}
+          <View style={styles.topRow}>
+            {dashboardData.map((item) => (
+              <TouchableOpacity
+                key={item.id}
+                style={[
+                  styles.dashboardCard,
+                  { borderLeftColor: item.borderColor }
+                ]}
+                onPress={() => handleCardPress(item.title)}
+                activeOpacity={0.8}
+              >
+                <View style={styles.cardContent}>
+                  <View style={styles.cardIcon}>
+                    <Ionicons
+                      name={item.icon as any}
+                      size={24}
+                      color={item.color}
+                    />
+                  </View>
+                  <View style={styles.cardText}>
+                    <Text style={styles.cardTitle}>{item.title}</Text>
+                    <Text style={styles.cardSubtitle}>{item.subtitle}</Text>
+                  </View>
                 </View>
-                <View style={styles.cardText}>
-                  <Text style={styles.cardTitle}>{item.title}</Text>
-                  <Text style={styles.cardSubtitle}>{item.subtitle}</Text>
-                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Segunda linha - Família (card único) */}
+          <TouchableOpacity
+            style={[
+              styles.dashboardCard,
+              styles.familyCard,
+              { borderLeftColor: familyCard.borderColor }
+            ]}
+            onPress={() => handleCardPress(familyCard.title)}
+            activeOpacity={0.8}
+          >
+            <View style={styles.cardContent}>
+              <View style={styles.cardIcon}>
+                <Ionicons
+                  name={familyCard.icon as any}
+                  size={24}
+                  color={familyCard.color}
+                />
               </View>
-            </TouchableOpacity>
-          ))}
+              <View style={styles.cardText}>
+                <Text style={styles.cardTitle}>{familyCard.title}</Text>
+                <Text style={styles.cardSubtitle}>{familyCard.subtitle}</Text>
+              </View>
+            </View>
+          </TouchableOpacity>
         </View>
 
         {/* Próximos Eventos */}
@@ -158,18 +179,18 @@ const styles = StyleSheet.create({
     paddingTop: 20,
   },
   dashboardContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
     marginBottom: 30,
+  },
+  topRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16,
   },
   dashboardCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     borderLeftWidth: 4,
     padding: 16,
-    marginBottom: 16,
-    width: '48%',
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -178,6 +199,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 3.84,
     elevation: 5,
+    width: '48%',
+  },
+  familyCard: {
+    width: '100%',
   },
   cardContent: {
     flexDirection: 'row',

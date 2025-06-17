@@ -6,7 +6,6 @@ import { useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-
 // Previne a splash screen de se esconder automaticamente
 SplashScreen.preventAutoHideAsync();
 

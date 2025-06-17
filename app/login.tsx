@@ -2,9 +2,9 @@ import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, Alert, SafeAreaView } from "react-native";
 import { useRouter } from "expo-router";
 import { useFonts, Inter_400Regular, Inter_600SemiBold } from '@expo-google-fonts/inter';
+import { Lobster_400Regular } from '@expo-google-fonts/lobster';
 import * as SplashScreen from 'expo-splash-screen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
 
 import AuthTabs from "@/components/authTabs";
 import AuthForm from "@/components/authForm";
@@ -20,10 +20,11 @@ export default function Login() {
 
   const router = useRouter();
 
-  // Carrega as fontes Inter
+  // Carrega as fontes Inter e Lobster para consistência
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
     Inter_600SemiBold,
+    Lobster_400Regular,
   });
 
   if (!fontsLoaded) {
@@ -151,79 +152,45 @@ export default function Login() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <View style={styles.header}>
-          <Text style={styles.title}>CommiTime</Text>
-          <Text style={styles.subtitle}>
-            Gerencie seu tempo com eficiência
-          </Text>
-        </View>
-
-        <View style={styles.authContainer}>
-          <AuthTabs 
-            activeTab={activeTab} 
-            onTabChange={handleTabChange}
-          />
-          
-          <View style={styles.formContainer}>
-            <AuthForm
-              type="login"
-              email={email}
-              password={password}
-              onEmailChange={(value) => setEmail(value)}
-              onPasswordChange={(value) => setPassword(value)}
-              onSubmit={handleSubmit}
-              isLoading={isLoading}
-            />
-          </View>
-        </View>
-      </View>
-    </SafeAreaView>
+    <View style={styles.container}>
+      <Text style={styles.title}>
+        Commi
+        <Text style={styles.titleAccent}>Time</Text>!
+      </Text>
+      
+      <AuthTabs 
+        activeTab={activeTab} 
+        onTabChange={handleTabChange}
+      />
+      
+      <AuthForm
+        type="login"
+        email={email}
+        password={password}
+        onEmailChange={(value) => setEmail(value)}
+        onPasswordChange={(value) => setPassword(value)}
+        onSubmit={handleSubmit}
+        isLoading={isLoading}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: '#F9FAFB',
   },
-  content: {
-    flex: 1,
-    paddingHorizontal: 20,
-    justifyContent: 'center',
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 60,
-  },
   title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: 8,
-    fontFamily: 'Inter_600SemiBold',
+    fontSize: 72,
+    fontFamily: 'Lobster_400Regular',
+    marginBottom: 144,
+    color: '#000000',
   },
-  subtitle: {
-    fontSize: 16,
-    color: '#6B7280',
-    textAlign: 'center',
-    fontFamily: 'Inter_400Regular',
-  },
-  authContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  formContainer: {
-    marginTop: 40,
+  titleAccent: {
+    color: '#0EA5E9',
   },
 });
