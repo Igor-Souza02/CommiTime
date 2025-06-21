@@ -1,10 +1,11 @@
+import { useAuth } from '@/contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Clipboard,
   RefreshControl,
   SafeAreaView,
   ScrollView,
@@ -15,83 +16,59 @@ import {
   View,
 } from 'react-native';
 
-
-interface User {
-  id: number;
-  name: string;
-  email: string;
-  createdAt?: string;
-  role?: string;
+interface Familia {
+  id: string;
+  nome: string;
+  codigo_convite: string;
 }
 
-interface CurrentUser {
-  id: number;
+interface Membro {
+  id: string;
   name: string;
   email: string;
+  papel: 'responsavel' | 'dependente';
+  papel_detalhado?: string;
 }
 
 export default function PerfilScreen() {
-  const [users, setUsers] = useState<User[]>([]);
-  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+  const [familia, setFamilia] = useState<Familia | null>(null);
+  const [membros, setMembros] = useState<Membro[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const { signOut, userData, authData } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    checkAuthAndLoadData();
-  }, []);
-
-  const checkAuthAndLoadData = async () => {
-    try {
-      const userToken = await AsyncStorage.getItem('userToken');
-      const userData = await AsyncStorage.getItem('userData');
-      
-      if (!userToken) {
-        console.log("loadUsers: Token não encontrado, saindo.");
-        setIsLoading(false); // Pare o carregamento
-        return;
-      }
-
-      if (userData) {
-        setCurrentUser(JSON.parse(userData));
-      }
-
-      await loadUsers();
-    } catch (error) {
-      console.error('Erro ao verificar autenticação:', error);
-      router.replace('/login');
+    if (authData?.token) {
+      loadFamilia();
     }
-  };
+  }, [authData]);
 
-  const loadUsers = async () => {
+  const loadFamilia = async () => {
+    if (!authData?.token) return;
+
     try {
       setIsLoading(true);
       const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
-      const userToken = await AsyncStorage.getItem('userToken');
-
-      const response = await fetch(`${API_URL}/api/users`, {
+      
+      const response = await fetch(`${API_URL}/api/familias/me`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${userToken}`,
+          'Authorization': `Bearer ${authData.token}`,
           'Content-Type': 'application/json',
         },
       });
 
       if (response.ok) {
         const data = await response.json();
-        setUsers(data.users || []);
-      } else if (response.status === 401) {
-        // Se o token for inválido, apenas limpe e o layout cuidará do resto
-        await AsyncStorage.clear();
+        setFamilia(data.familia);
+        setMembros(data.membros || []);
       } else {
-        console.error('Erro ao carregar usuários:', response.status);
+        console.error('Erro ao carregar dados da família:', response.status);
       }
     } catch (error) {
       console.error('Erro ao conectar com o servidor:', error);
-      Alert.alert(
-        'Erro de Conexão',
-        'Não foi possível carregar os usuários. Verifique sua conexão.'
-      );
+      Alert.alert('Erro de Conexão', 'Não foi possível carregar os dados da sua família.');
     } finally {
       setIsLoading(false);
     }
@@ -99,66 +76,66 @@ export default function PerfilScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadUsers();
+    await loadFamilia();
     setRefreshing(false);
   };
 
-  const handleLogout = async () => {
+  const copyToClipboard = () => {
+    if (familia?.codigo_convite) {
+      Clipboard.setString(familia.codigo_convite);
+      Alert.alert('Copiado!', 'O código de convite foi copiado para a área de transferência.');
+    }
+  };
+
+  const getRoleStyle = (role?: string) => {
+    if (role === 'dono' || role === 'responsavel' || role === 'pai' || role === 'mae') {
+        return styles.roleResponsavel;
+    }
+    return styles.roleDependente;
+  };
+
+  const handleLogout = () => {
     Alert.alert(
-      'Logout',
+      'Sair',
       'Tem certeza que deseja sair?',
       [
-        {
-          text: 'Cancelar',
-          style: 'cancel',
-        },
-        {
-          text: 'Sair',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await AsyncStorage.clear();
-              router.replace('/login');
-            } catch (error) {
-              console.error('Erro ao fazer logout:', error);
-            }
-          },
-        },
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Sair', style: 'destructive', onPress: signOut },
       ]
     );
   };
 
-  const handleDeleteUser = async (userId: number) => {
+  const handleDeleteUser = async (userId: string) => {
+    if (!authData?.token) {
+      Alert.alert('Erro', 'Você não está autenticado para realizar esta ação.');
+      return;
+    }
+    
     Alert.alert(
       'Remover Usuário',
       'Tem certeza que deseja remover este usuário?',
       [
-        {
-          text: 'Cancelar',
-          style: 'cancel',
-        },
+        { text: 'Cancelar', style: 'cancel' },
         {
           text: 'Remover',
           style: 'destructive',
           onPress: async () => {
             try {
               const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
-                      const userToken = await AsyncStorage.getItem('userToken');
-
-
-              const response = await fetch(`${API_URL}/api/users`, {
+              const response = await fetch(`${API_URL}/api/users/${userId}`, {
                 method: 'DELETE',
                 headers: {
-                  'Authorization': `Bearer ${userToken}`,
+                  'Authorization': `Bearer ${authData.token}`,
                   'Content-Type': 'application/json',
                 },
               });
 
               if (response.ok) {
                 Alert.alert('Sucesso', 'Usuário removido com sucesso');
-                await loadUsers(); // Recarrega a lista
+                await loadFamilia();
               } else {
-                Alert.alert('Erro', 'Não foi possível remover o usuário');
+                const data = await response.json();
+                Alert.alert('Erro', data.error || 'Não foi possível remover o usuário');
               }
             } catch (error) {
               console.error('Erro ao remover usuário:', error);
@@ -184,6 +161,18 @@ export default function PerfilScreen() {
     }
   };
 
+  const currentUserDisplay = userData ? (
+    <View style={styles.userInfo}>
+      <Text style={styles.userName}>{userData.name}</Text>
+      <Text style={styles.userEmail}>{userData.email}</Text>
+      {(userData.papel_detalhado || userData.papel) && 
+        <Text style={styles.userRole}>
+          {(userData.papel_detalhado || userData.papel)!.charAt(0).toUpperCase() + (userData.papel_detalhado || userData.papel)!.slice(1)}
+        </Text>
+      }
+    </View>
+  ) : null;
+
   if (isLoading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -203,9 +192,7 @@ export default function PerfilScreen() {
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>CommiTime</Text>
-          {currentUser && (
-            <Text style={styles.welcomeText}>Olá, {currentUser.name}!</Text>
-          )}
+          {currentUserDisplay}
         </View>
         <TouchableOpacity 
           style={styles.logoutButton}
@@ -222,59 +209,36 @@ export default function PerfilScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        {/* Usuários Cadastrados */}
+        {/* 4. SEÇÃO DA FAMÍLIA */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            👥 Usuários Cadastrados ({users.length})
-          </Text>
-          
-          {users.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyText}>Nenhum usuário encontrado</Text>
-              <TouchableOpacity 
-                style={styles.refreshButton}
-                onPress={() => loadUsers()}
-              >
-                <Text style={styles.refreshButtonText}>Atualizar</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            users.map((user) => (
-              <View key={user.id} style={styles.userCard}>
-                <View style={styles.userInfo}>
-                  <View style={styles.emojiContainer}>
-                    <Text style={styles.emoji}>{getRandomEmoji()}</Text>
-                  </View>
-                  <View style={styles.userDetails}>
-                    <Text style={styles.userName}>{user.name}</Text>
-                    <Text style={styles.userEmail}>{user.email}</Text>
-                    {user.createdAt && (
-                      <Text style={styles.userDate}>
-                        Cadastrado em: {formatDate(user.createdAt)}
-                      </Text>
-                    )}
-                  </View>
-                </View>
-                
-                <View style={styles.userActions}>
-                  <TouchableOpacity 
-                    style={styles.actionButton}
-                    onPress={() => Alert.alert('Info', `Usuário: ${user.name}\nEmail: ${user.email}`)}
-                  >
-                    <Ionicons name="information-circle-outline" size={20} color="#4A90E2" />
-                  </TouchableOpacity>
-                  {currentUser && currentUser.id !== user.id && (
-                    <TouchableOpacity 
-                      style={styles.actionButton}
-                      onPress={() => handleDeleteUser(user.id)}
-                    >
-                      <Ionicons name="trash-outline" size={20} color="#E74C3C" />
-                    </TouchableOpacity>
-                  )}
-                </View>
+          <Text style={styles.sectionTitle}>{familia?.nome || 'Minha Família'}</Text>
+          {userData?.papel === 'responsavel' && familia && (
+            <View style={styles.inviteContainer}>
+              <Text style={styles.inviteLabel}>Código de Convite:</Text>
+              <View style={styles.inviteCodeBox}>
+                <Text style={styles.inviteCode}>{familia.codigo_convite}</Text>
+                <TouchableOpacity onPress={copyToClipboard}>
+                  <Ionicons name="copy-outline" size={24} color="#4A90E2" />
+                </TouchableOpacity>
               </View>
-            ))
+            </View>
           )}
+        </View>
+
+        {/* 5. SEÇÃO DE MEMBROS */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Membros da Família</Text>
+          {membros.map(membro => (
+            <View key={membro.id} style={styles.userCard}>
+              <View>
+                <Text style={styles.userName}>{membro.name}</Text>
+                <Text style={styles.userEmail}>{membro.email}</Text>
+              </View>
+              <View style={[styles.roleBadge, getRoleStyle(membro.papel_detalhado || membro.papel)]}>
+                <Text style={styles.roleText}>{(membro.papel_detalhado || membro.papel).charAt(0).toUpperCase() + (membro.papel_detalhado || membro.papel).slice(1)}</Text>
+              </View>
+            </View>
+          ))}
         </View>
 
         {/* Estatísticas */}
@@ -283,16 +247,14 @@ export default function PerfilScreen() {
           
           <View style={styles.statsContainer}>
             <View style={styles.statCard}>
-              <Text style={styles.statNumber}>{users.length}</Text>
-              <Text style={styles.statLabel}>Total de Usuários</Text>
+              <Text style={styles.statNumber}>{membros.length}</Text>
+              <Text style={styles.statLabel}>Total de Membros</Text>
             </View>
             <View style={styles.statCard}>
               <Text style={styles.statNumber}>
-                {users.filter(u => u.createdAt && 
-                  new Date(u.createdAt) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-                ).length}
+                {membros.filter(m => m.papel === 'responsavel').length}
               </Text>
-              <Text style={styles.statLabel}>Novos (7 dias)</Text>
+              <Text style={styles.statLabel}>Responsáveis</Text>
             </View>
           </View>
         </View>
@@ -386,42 +348,56 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   section: {
-    marginTop: 20,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 16,
+    marginHorizontal: 16,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: 'bold',
     color: '#2C3E50',
     marginBottom: 16,
   },
-  emptyState: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 40,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+  inviteContainer: {
+    // estilos para a seção de convite
   },
-  emptyText: {
-    fontSize: 16,
+  inviteLabel: {
+    fontSize: 14,
     color: '#6C757D',
-    marginBottom: 16,
   },
-  refreshButton: {
-    backgroundColor: '#4A90E2',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+  inviteCodeBox: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#F8F9FA',
+    padding: 12,
     borderRadius: 8,
+    marginTop: 8,
   },
-  refreshButtonText: {
+  inviteCode: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    letterSpacing: 2,
+    color: '#4A90E2',
+  },
+  roleBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  roleText: {
     color: '#FFFFFF',
-    fontWeight: '600',
+    fontSize: 12,
+    fontWeight: 'bold',
+    textTransform: 'capitalize',
+  },
+  roleResponsavel: {
+    backgroundColor: '#2ECC71', // Verde para responsável
+  },
+  roleDependente: {
+    backgroundColor: '#F39C12', // Laranja para dependente
   },
   userCard: {
     backgroundColor: '#FFFFFF',
@@ -461,15 +437,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   userName: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
     color: '#2C3E50',
-    marginBottom: 4,
   },
   userEmail: {
     fontSize: 14,
-    color: '#4A90E2',
-    marginBottom: 2,
+    color: '#6C757D',
   },
   userDate: {
     fontSize: 12,
@@ -554,5 +528,17 @@ const styles = StyleSheet.create({
   configSubtitle: {
     fontSize: 14,
     color: '#6C757D',
+  },
+  userRole: {
+    fontSize: 12,
+    color: '#4A90E2',
+    fontWeight: 'bold',
+    backgroundColor: '#E9F5FD',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginTop: 4,
+    alignSelf: 'flex-start',
+    overflow: 'hidden',
   },
 });

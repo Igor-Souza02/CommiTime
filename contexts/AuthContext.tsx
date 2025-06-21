@@ -1,229 +1,131 @@
-// contexts/AuthContext.tsx
-import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useRouter } from 'expo-router';
-import { Alert } from 'react-native';
+import { useRouter, useSegments } from 'expo-router';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 
-interface AuthContextType {
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
-  register: (email: string, name: string, password: string) => Promise<boolean>;
-  logout: () => void;
-  user: User | null;
+// 1. DEFINIÇÃO DAS ESTRUTURAS DE DADOS
+interface AuthData {
+  token: string;
 }
 
-interface User {
+interface UserData {
   id: string;
-  email: string;
   name: string;
+  email: string;
+  familia_id?: string;
+  papel?: 'responsavel' | 'dependente';
+  papel_detalhado?: 'dono' | 'pai' | 'mae' | 'filho' | 'filha';
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+interface AuthContextData {
+  authData?: AuthData;
+  userData?: UserData;
+  loading: boolean;
+  signIn(authData: AuthData, userData: UserData): Promise<void>;
+  signOut(): void;
+  updateUserData(newUserData: Partial<UserData>): void;
+}
 
-// Simulador de API para desenvolvimento
-const mockApiCall = async (endpoint: string, data: any) => {
-  // Simula delay de rede
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  
-  if (endpoint === 'login') {
-    // Simula credenciais válidas
-    if (data.email === 'test@test.com' && data.password === '123456') {
-      return {
-        ok: true,
-        json: async () => ({
-          token: 'mock-jwt-token',
-          user: {
-            id: '1',
-            email: data.email,
-            name: 'Usuário Teste'
-          }
-        })
-      };
-    } else {
-      return {
-        ok: false,
-        json: async () => ({ message: 'Credenciais inválidas' })
-      };
-    }
-  }
-  
-  if (endpoint === 'register') {
-    // Simula registro bem-sucedido
-    return {
-      ok: true,
-      json: async () => ({
-        message: 'Usuário criado com sucesso',
-        user: {
-          id: '2',
-          email: data.email,
-          name: data.name
-        }
-      })
-    };
-  }
-};
+// 2. CRIAÇÃO DO CONTEXTO
+const AuthContext = createContext<AuthContextData>({} as AuthContextData);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [user, setUser] = useState<User | null>(null);
+// 3. HOOK PÚBLICO PARA ACESSAR O CONTEXTO
+export function useAuth() {
+  return useContext(AuthContext);
+}
+
+// 4. HOOK DE LÓGICA DE REDIRECIONAMENTO
+function useProtectedRoute(user: UserData | undefined, loading: boolean) {
   const router = useRouter();
+  const segments = useSegments();
 
   useEffect(() => {
-    checkAuthStatus();
+    // Se estiver carregando os dados, não faz nada ainda.
+    if (loading) return;
+
+    // Pega o nome da rota atual. O expo-router pode ter segmentos vazios no início.
+    const currentRoute = segments.length > 0 ? segments[segments.length - 1] : null;
+
+    // Define quais rotas são públicas (não precisam de login)
+    const isPublicRoute = currentRoute === 'login' || currentRoute === 'register';
+    const isFamilyGate = currentRoute === 'family-gate';
+    
+    // Se não há usuário e a rota atual NÃO é pública, redireciona para o login.
+    if (!user && !isPublicRoute) {
+      router.replace('/login');
+    } 
+    // Se há usuário, mas ele não tem família E não está na tela de família, redireciona para lá.
+    else if (user && !user.familia_id && !isFamilyGate) {
+      router.replace('/family-gate');
+    } 
+    // Se há usuário E família, mas ele está em uma rota pública ou na de família, redireciona para dentro do app.
+    else if (user && user.familia_id && (isPublicRoute || isFamilyGate)) {
+      router.replace('/calendario');
+    }
+  }, [user, segments, loading, router]);
+}
+
+// 5. O PROVEDOR DO CONTEXTO
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [authData, setAuthData] = useState<AuthData>();
+  const [userData, setUserData] = useState<UserData>();
+  const [loading, setLoading] = useState(true);
+
+  // Hook que executa a lógica de redirecionamento
+  useProtectedRoute(userData, loading);
+
+  useEffect(() => {
+    async function loadStoragedData() {
+      try {
+        const token = await AsyncStorage.getItem('userToken');
+        const userJson = await AsyncStorage.getItem('userData');
+        if (token && userJson) {
+          setAuthData({ token });
+          setUserData(JSON.parse(userJson));
+        }
+      } catch (error) {
+        console.error("Failed to load auth data from storage", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadStoragedData();
   }, []);
 
-  const checkAuthStatus = async () => {
+  const signIn = async (newAuthData: AuthData, newUserData: UserData) => {
     try {
-      const token = await AsyncStorage.getItem('authToken');
-      const userData = await AsyncStorage.getItem('userData');
-      
-      if (token && userData) {
-        setUser(JSON.parse(userData));
-        setIsAuthenticated(true);
-        router.replace('/(tabs)');
-      } else {
-        router.replace('/login');
-      }
+      await AsyncStorage.setItem('userToken', newAuthData.token);
+      await AsyncStorage.setItem('userData', JSON.stringify(newUserData));
+      setAuthData(newAuthData);
+      setUserData(newUserData);
+      // O hook 'useProtectedRoute' cuidará do redirecionamento
     } catch (error) {
-      console.error('Error checking auth status:', error);
-      router.replace('/login');
-    } finally {
-      setIsLoading(false);
+      console.error("Failed to sign in", error);
     }
   };
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const signOut = async () => {
     try {
-      const userData = {
-        email: email,
-        password: password,
-      };
-
-      // Primeiro tenta a API real
-      let response;
-      try {
-        response = await fetch("http://localhost:3000/api/auth/login", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(userData),
-        });
-      } catch (networkError) {
-        console.log('API não disponível, usando mock');
-        // Se falhar, usa o mock
-        response = await mockApiCall('login', userData);
-      }
-
-      if (!response) {
-        Alert.alert('Erro', 'Falha na conexão. Tente novamente.');
-        return false;
-      }
-
-      const data = await response.json();
-
-      if (response.ok) {
-        await AsyncStorage.setItem('authToken', data.token);
-        await AsyncStorage.setItem('userData', JSON.stringify(data.user));
-        
-        setUser(data.user);
-        setIsAuthenticated(true);
-        
-        router.replace('/(tabs)');
-        return true;
-      } else {
-        Alert.alert('Erro', data.message || 'Credenciais inválidas');
-        return false;
-      }
+      await AsyncStorage.multiRemove(['userToken', 'userData']);
+      setAuthData(undefined);
+      setUserData(undefined);
+      // O hook 'useProtectedRoute' cuidará do redirecionamento
     } catch (error) {
-      console.error('Error during login:', error);
-      Alert.alert('Erro', 'Falha na conexão. Tente novamente.');
-      return false;
+      console.error("Failed to sign out", error);
     }
   };
 
-  const register = async (email: string, name: string, password: string): Promise<boolean> => {
-    try {
-      const userData = {
-        email: email,
-        name: name,
-        password: password,
-      };
-
-      // Primeiro tenta a API real
-      let response;
-      try {
-        response = await fetch("http://localhost:3000/api/auth/register", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(userData),
-        });
-      } catch (networkError) {
-        console.log('API não disponível, usando mock');
-        // Se falhar, usa o mock
-        response = await mockApiCall('register', userData);
-      }
-
-      if (!response) {
-        Alert.alert('Erro', 'Falha na conexão. Tente novamente.');
-        return false;
-      }
-
-      const data = await response.json();
-
-      if (response.ok) {
-        Alert.alert('Sucesso', 'Conta criada com sucesso!', [
-          {
-            text: 'OK',
-            onPress: () => router.push('/login')
-          }
-        ]);
-        return true;
-      } else {
-        Alert.alert('Erro', data.message || 'Erro ao criar conta');
-        return false;
-      }
-    } catch (error) {
-      console.error('Error during registration:', error);
-      Alert.alert('Erro', 'Falha na conexão. Tente novamente.');
-      return false;
-    }
-  };
-
-  const logout = async () => {
-    try {
-      await AsyncStorage.removeItem('authToken');
-      await AsyncStorage.removeItem('userData');
-      setUser(null);
-      setIsAuthenticated(false);
-      router.replace('/login');
-    } catch (error) {
-      console.error('Error during logout:', error);
-    }
+  const updateUserData = (newUserData: Partial<UserData>) => {
+    setUserData(prev => {
+      if (!prev) return undefined;
+      const updatedUser = { ...prev, ...newUserData };
+      AsyncStorage.setItem('userData', JSON.stringify(updatedUser));
+      return updatedUser;
+    });
   };
 
   return (
-    <AuthContext.Provider value={{
-      isAuthenticated,
-      isLoading,
-      login,
-      register,
-      logout,
-      user
-    }}>
+    <AuthContext.Provider value={{ authData, userData, loading, signIn, signOut, updateUserData }}>
       {children}
     </AuthContext.Provider>
   );
-}
-
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
 }

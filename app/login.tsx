@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, Alert, SafeAreaView } from "react-native";
-import { useRouter } from "expo-router";
-import { useFonts, Inter_400Regular, Inter_600SemiBold } from '@expo-google-fonts/inter';
+import { useAuth } from '@/contexts/AuthContext';
+import { Inter_400Regular, Inter_600SemiBold, useFonts } from '@expo-google-fonts/inter';
 import { Lobster_400Regular } from '@expo-google-fonts/lobster';
+import { useRouter } from "expo-router";
 import * as SplashScreen from 'expo-splash-screen';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useState } from "react";
+import { Alert, StyleSheet, Text, View } from "react-native";
 
-import AuthTabs from "@/components/authTabs";
 import AuthForm from "@/components/authForm";
+import AuthTabs from "@/components/authTabs";
 
 // Previne o splash screen de se esconder automaticamente
 SplashScreen.preventAutoHideAsync();
@@ -19,6 +19,7 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
 
   const router = useRouter();
+  const { signIn } = useAuth();
 
   // Carrega as fontes Inter e Lobster para consistência
   const [fontsLoaded] = useFonts({
@@ -117,9 +118,8 @@ export default function Login() {
     if (response.ok && data.success) {
       console.log("✅ Login successful:", data);
       
-      // Salva o token e informações do usuário
-      await AsyncStorage.setItem('userToken', data.token);
-      await AsyncStorage.setItem('userData', JSON.stringify(data.user));
+      // Usa a função signIn do contexto para atualizar o estado global
+      await signIn({ token: data.token }, data.user);
       
       Alert.alert(
         "Sucesso", 
@@ -131,8 +131,7 @@ export default function Login() {
               // Limpa os campos
               setEmail("");
               setPassword("");
-              // Navega para a tela de perfil
-              router.replace('/(tabs)/perfil');
+              // A lógica de redirecionamento agora será tratada pelo AuthContext
             }
           }
         ]
@@ -187,7 +186,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 72,
     fontFamily: 'Lobster_400Regular',
-    marginBottom: 144,
+    marginBottom: 120,
     color: '#000000',
   },
   titleAccent: {

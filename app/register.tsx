@@ -1,9 +1,9 @@
-import { useState } from "react";
-import { View, Text, StyleSheet, Alert } from "react-native";
+import { Lobster_400Regular, useFonts } from '@expo-google-fonts/lobster';
 import { useRouter } from "expo-router";
-import AuthTabs from "../components/authTabs";
+import { useState } from "react";
+import { Alert, StyleSheet, Text, View } from "react-native";
 import AuthForm from "../components/authForm";
-import { useFonts, Lobster_400Regular } from '@expo-google-fonts/lobster';
+import AuthTabs from "../components/authTabs";
 
 export default function Register() {
   const [fontsLoaded] = useFonts({
@@ -75,8 +75,6 @@ export default function Register() {
     setIsLoading(true);
 
     try {
-      console.log("🚀 Iniciando processo de registro...");
-      
       const userData = {
         email: email.trim().toLowerCase(),
         name: username.trim(),
@@ -84,98 +82,33 @@ export default function Register() {
       };
 
       const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
-      const endpoint = `${API_URL}/api/auth/register`;
-      
-      console.log("📡 API URL:", API_URL);
-      console.log("🎯 Endpoint:", endpoint);
-      console.log("📦 Dados sendo enviados:", {
-        email: userData.email,
-        name: userData.name,
-        password: "[HIDDEN]"
-      });
-
-      const requestOptions = {
+      const response = await fetch(`${API_URL}/api/auth/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Accept": "application/json",
         },
         body: JSON.stringify(userData),
-      };
+      });
 
-      console.log("🔄 Fazendo requisição...");
-      
-      const response = await fetch(endpoint, requestOptions);
-      
-      console.log("📊 Status da resposta:", response.status);
-      console.log("📊 Response OK:", response.ok);
-      
-      // Verifica o content-type da resposta
-      const contentType = response.headers.get("content-type");
-      console.log("📋 Content-Type:", contentType);
-      
-      let data;
-      try {
-        const responseText = await response.text();
-        console.log("📄 Resposta bruta:", responseText);
-        
-        if (contentType && contentType.includes("application/json")) {
-          data = responseText ? JSON.parse(responseText) : {};
-          console.log("📋 Dados JSON parseados:", data);
-        } else {
-          console.log("⚠️ Resposta não é JSON válido");
-          throw new Error(`Resposta do servidor não é JSON válido. Content-Type: ${contentType}`);
-        }
-      } catch (parseError) {
-        console.error("❌ Erro ao fazer parse da resposta:", parseError);
-        throw new Error("Erro ao processar resposta do servidor");
-      }
+      const data = await response.json();
 
-      if (response.ok && data.success) {
-        console.log("✅ Registration successful:", data);
+      if (response.ok) {
         Alert.alert(
-          "Sucesso", 
-          data.message || "Registro realizado com sucesso! Faça login agora.",
+          "Sucesso!",
+          "Sua conta foi criada. Por favor, faça o login para continuar.",
           [
             {
-              text: "OK",
-              onPress: () => {
-                // Limpa os campos
-                setEmail("");
-                setUsername("");
-                setPassword("");
-                // Navega para login
-                router.push("/login");
-              }
-            }
+              text: "Ir para Login",
+              onPress: () => router.push("/login"),
+            },
           ]
         );
       } else {
-        const errorMessage = data?.error || data?.message || `Erro HTTP ${response.status}`;
-        console.error("❌ Registration failed:", errorMessage);
-        console.error("❌ Full error data:", data);
-        
-        Alert.alert(
-          "Erro de Registro", 
-          errorMessage,
-          [{ text: "OK" }]
-        );
+        throw new Error(data.error || data.message || "Não foi possível criar a conta.");
       }
-
     } catch (error: any) {
-      console.error("💥 Erro durante o registro:", error);
-      
-      let errorMessage = "Erro inesperado durante o registro.";
-      
-      if (error.message === "Network request failed") {
-        errorMessage = `Não foi possível conectar ao servidor.\n\nVerifique se o backend está rodando em:\n${process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000"}`;
-      } else if (error.message.includes("JSON")) {
-        errorMessage = "Erro na comunicação com o servidor. Resposta inválida.";
-      } else {
-        errorMessage = error.message || "Erro inesperado.";
-      }
-      
-      Alert.alert("Erro de Conexão", errorMessage);
+      console.error("Erro no registro:", error);
+      Alert.alert("Erro de Registro", error.message);
     } finally {
       setIsLoading(false);
     }
@@ -213,7 +146,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 72,
     fontFamily: 'Lobster_400Regular',
-    marginBottom: 144,
+    marginBottom: 120,
     color: '#000000',
   },
   titleAccent: {
